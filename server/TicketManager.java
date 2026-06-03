@@ -1,31 +1,89 @@
 package server;
 
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class TicketManager {
-    // 記憶體內的票數計算機，AtomicInteger保證執行緒安全
-    private static final AtomicInteger remainingTickets = new AtomicInteger(10); // 總共只有10張票
-    // 記錄誰搶成功了，使用執行緒安全的 ConcurrentHashMap
-    private static final Map<String, Boolean> successRecords = new ConcurrentHashMap<>();
+    // 票種與單價（依插入順序提供給前端顯示）
+    private static final Map<String, Integer> ticketPrices = new LinkedHashMap<>();
+    // 各票種剩餘張數
+    private static final Map<String, AtomicInteger> ticketInventory = new ConcurrentHashMap<>();
+    // 紀錄使用者電話是否已成功購票（避免重複購買）
+    private static final Map<String, Integer> successRecords = new ConcurrentHashMap<>();
+    private static final AtomicInteger orderSequence = new AtomicInteger(0);
 
-    public static synchronized String tryToBook(String userId) {
-        // 1. 檢查是否重複購買
-        if (successRecords.containsKey(userId)) {
-            return "FAILED:重複購買";
+    static {
+        ticketPrices.put("VIP", 3800);
+        ticketPrices.put("A區", 2600);
+        ticketPrices.put("B區", 1800);
+
+        ticketInventory.put("VIP", new AtomicInteger(6));
+        ticketInventory.put("A區", new AtomicInteger(12));
+        ticketInventory.put("B區", new AtomicInteger(20));
+    }
+
+    public static synchronized String getTicketStatus() {
+        StringBuilder builder = new StringBuilder("STATUS:");
+        boolean first = true;
+        for (Map.Entry<String, Integer> entry : ticketPrices.entrySet()) {
+            String type = entry.getKey();
+            int price = entry.getValue();
+            int remaining = ticketInventory.get(type).get();
+            if (!first) {
+                builder.append(',');
+            }
+            // 格式：票種=剩餘@單價
+            builder.append(type).append('=').append(remaining).append('@').append(price);
+            first = false;
+        }
+        return builder.toString();
+    }
+
+    public static synchronized String tryToBook(String userName, String phone, String ticketType, int quantity) {
+        if (userName == null || userName.trim().isEmpty()) {
+            return "FAILED:姓名不可為空";
         }
 
-        // 2. 檢查並扣減票數
-        int currentTickets = remainingTickets.get();
-        if (currentTickets <= 0) {
-            return "FAILED:票已被搶光！";
+        if (phone == null || phone.trim().isEmpty()) {
+            return "FAILED:電話不可為空";
         }
 
-        // 扣票 (原子操作)
-        remainingTickets.decrementAndGet();
-        successRecords.put(userId, true);
-        System.out.println("【成功】使用者 " + userId + " 搶票成功！剩餘票數: " + remainingTickets.get());
-        return "SUCCESS:搶票成功！您目前的序號為 No." + (10 - remainingTickets.get());
+        if (quantity <= 0) {
+            return "FAILED:張數需大於 0";
+        }
+
+        if (quantity > 4) {
+            return "FAILED:單次最多購買 4 張";
+        }
+
+        AtomicInteger inventory = ticketInventory.get(ticketType);
+        if (inventory == null) {
+            return "FAILED:未知票種";
+        }
+
+        String phoneKey = phone.trim();
+        if (successRecords.containsKey(phoneKey)) {
+            return "FAILED:此電話已完成購票，請勿重複下單";
+        }
+
+        int currentTickets = inventory.get();
+        if (currentTickets < quantity) {
+            return "FAILED:" + ticketType + "剩餘 " + currentTickets + " 張，無法購買 " + quantity + " 張";
+        }
+
+        int left = inventory.addAndGet(-quantity);
+        successRecords.put(phoneKey, quantity);
+
+        int orderNo = orderSequence.incrementAndGet();
+        int totalPrice = ticketPrices.get(ticketType) * quantity;
+        String serial = String.format("%04d", orderNo);
+
+        System.out.println("【成功】" + userName + "(" + phone + ") 購買 " + ticketType + " " + quantity
+                + " 張，訂單#" + serial + "，剩餘: " + left);
+
+        return "SUCCESS:訂票成功！訂單#" + serial + "，票種:" + ticketType + "，張數:" + quantity
+                + "，總金額:$" + totalPrice + "，剩餘:" + left;
     }
 }
