@@ -27,7 +27,7 @@ public class SeckillClientWindow extends JFrame {
 
     private JTextField txtName;
     private JTextField txtPhone;
-    private JTextField txtQuantity;
+    private JComboBox<Integer> cmbQuantity;
     private JTextField txtCaptchaInput;
     private JLabel lblCaptcha;
 
@@ -188,10 +188,11 @@ public class SeckillClientWindow extends JFrame {
         gbc.gridy = 4;
         gbc.weightx = 0.0;
         panel.add(new JLabel("張數 (1~4)："), gbc);
-        txtQuantity = new JTextField("1", 18);
+        cmbQuantity = new JComboBox<>(new Integer[] {1, 2, 3, 4});
+        cmbQuantity.setPreferredSize(new Dimension(180, 28));
         gbc.gridx = 1;
         gbc.weightx = 1.0;
-        panel.add(txtQuantity, gbc);
+        panel.add(cmbQuantity, gbc);
 
         gbc.gridx = 0;
         gbc.gridy = 5;
@@ -225,7 +226,10 @@ public class SeckillClientWindow extends JFrame {
         JButton btnSubmit = new JButton("確認送出搶票");
         btnSubmit.setBackground(new Color(0, 128, 85));
         btnSubmit.setForeground(Color.WHITE);
-        btnBack.addActionListener(e -> cardLayout.show(cardPanel, "SELECT"));
+        btnBack.addActionListener(e -> {
+            resetFormInputs();
+            cardLayout.show(cardPanel, "SELECT");
+        });
         btnSubmit.addActionListener(e -> submitBooking());
         buttonBar.add(btnBack);
         buttonBar.add(btnSubmit);
@@ -311,6 +315,7 @@ public class SeckillClientWindow extends JFrame {
         }
 
         lblFormTicketInfo.setText("票種：" + selectedType + " | 單價：$" + snapshot.price + " | 剩餘：" + snapshot.remaining + " 張");
+        resetFormInputs();
         refreshCaptcha();
         cardLayout.show(cardPanel, "FORM");
         setStatus("請填寫姓名、電話、張數後送出", new Color(30, 73, 140));
@@ -325,11 +330,11 @@ public class SeckillClientWindow extends JFrame {
 
         String name = txtName.getText().trim();
         String phone = txtPhone.getText().trim();
-        String qtyText = txtQuantity.getText().trim();
+        Integer selectedQuantity = (Integer) cmbQuantity.getSelectedItem();
         String captchaInput = txtCaptchaInput.getText().trim();
 
-        if (name.isEmpty() || phone.isEmpty() || qtyText.isEmpty()) {
-            setStatus("❌ 請完整填寫姓名、電話與張數", Color.RED);
+        if (name.isEmpty() || phone.isEmpty()) {
+            setStatus("❌ 請完整填寫姓名與電話", Color.RED);
             return;
         }
 
@@ -344,13 +349,11 @@ public class SeckillClientWindow extends JFrame {
             return;
         }
 
-        int quantity;
-        try {
-            quantity = Integer.parseInt(qtyText);
-        } catch (NumberFormatException ex) {
-            setStatus("❌ 張數必須是數字", Color.RED);
+        if (selectedQuantity == null) {
+            setStatus("❌ 請選擇購買張數", Color.RED);
             return;
         }
+        int quantity = selectedQuantity;
 
         if (quantity <= 0 || quantity > 4) {
             setStatus("❌ 張數需介於 1 到 4", Color.RED);
@@ -367,7 +370,7 @@ public class SeckillClientWindow extends JFrame {
             String message = response.substring("SUCCESS:".length());
             JOptionPane.showMessageDialog(this, message, "購票成功", JOptionPane.INFORMATION_MESSAGE);
             setStatus("🎉 " + message, new Color(0, 128, 0));
-            txtCaptchaInput.setText("");
+            resetFormInputs();
             refreshTicketStatus();
             cardLayout.show(cardPanel, "SELECT");
             return;
@@ -406,6 +409,21 @@ public class SeckillClientWindow extends JFrame {
         }
         currentCaptcha = builder.toString();
         lblCaptcha.setText(currentCaptcha);
+        if (txtCaptchaInput != null) {
+            txtCaptchaInput.setText("");
+        }
+    }
+
+    private void resetFormInputs() {
+        if (txtName != null) {
+            txtName.setText("");
+        }
+        if (txtPhone != null) {
+            txtPhone.setText("");
+        }
+        if (cmbQuantity != null) {
+            cmbQuantity.setSelectedItem(1);
+        }
         if (txtCaptchaInput != null) {
             txtCaptchaInput.setText("");
         }
