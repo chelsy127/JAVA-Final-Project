@@ -3,6 +3,8 @@ package server;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import java.awt.*;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
@@ -145,46 +147,68 @@ public class SeckillClientWindow extends JFrame {
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.insets = new Insets(8, 8, 8, 8);
         gbc.anchor = GridBagConstraints.WEST;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
 
         JLabel lblTitle = new JLabel("Step 2. 填寫購票資訊");
         lblTitle.setFont(new Font("微軟正黑體", Font.BOLD, 18));
         gbc.gridx = 0;
         gbc.gridy = 0;
         gbc.gridwidth = 2;
+        gbc.weightx = 1.0;
         panel.add(lblTitle, gbc);
 
         lblFormTicketInfo = new JLabel("票種資訊：");
+        gbc.gridx = 0;
         gbc.gridy = 1;
+        gbc.gridwidth = 2;
+        gbc.weightx = 1.0;
         panel.add(lblFormTicketInfo, gbc);
 
         gbc.gridwidth = 1;
+        gbc.weightx = 0.0;
+        gbc.gridwidth = 1;
         gbc.gridy = 2;
+        gbc.gridx = 0;
         panel.add(new JLabel("姓名："), gbc);
         txtName = new JTextField(18);
         gbc.gridx = 1;
+        gbc.weightx = 1.0;
         panel.add(txtName, gbc);
 
         gbc.gridx = 0;
         gbc.gridy = 3;
+        gbc.weightx = 0.0;
         panel.add(new JLabel("電話："), gbc);
         txtPhone = new JTextField(18);
         gbc.gridx = 1;
+        gbc.weightx = 1.0;
         panel.add(txtPhone, gbc);
 
         gbc.gridx = 0;
         gbc.gridy = 4;
+        gbc.weightx = 0.0;
         panel.add(new JLabel("張數 (1~4)："), gbc);
         txtQuantity = new JTextField("1", 18);
         gbc.gridx = 1;
+        gbc.weightx = 1.0;
         panel.add(txtQuantity, gbc);
 
         gbc.gridx = 0;
         gbc.gridy = 5;
+        gbc.weightx = 0.0;
         panel.add(new JLabel("驗證碼："), gbc);
         JPanel captchaPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
         captchaPanel.setOpaque(false);
         lblCaptcha = new JLabel("----");
         lblCaptcha.setFont(new Font("Consolas", Font.BOLD, 20));
+        lblCaptcha.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        lblCaptcha.setToolTipText("點擊可刷新驗證碼");
+        lblCaptcha.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                refreshCaptcha();
+            }
+        });
         txtCaptchaInput = new JTextField(8);
         JButton btnRefreshCaptcha = new JButton("換一張");
         btnRefreshCaptcha.addActionListener(e -> refreshCaptcha());
@@ -192,6 +216,7 @@ public class SeckillClientWindow extends JFrame {
         captchaPanel.add(txtCaptchaInput);
         captchaPanel.add(btnRefreshCaptcha);
         gbc.gridx = 1;
+        gbc.weightx = 1.0;
         panel.add(captchaPanel, gbc);
 
         JPanel buttonBar = new JPanel(new FlowLayout(FlowLayout.LEFT, 12, 0));
@@ -208,7 +233,17 @@ public class SeckillClientWindow extends JFrame {
         gbc.gridx = 0;
         gbc.gridy = 6;
         gbc.gridwidth = 2;
+        gbc.weightx = 1.0;
         panel.add(buttonBar, gbc);
+
+        // 讓表單元件固定在上方，避免視窗尺寸改變時欄位跑位
+        gbc.gridx = 0;
+        gbc.gridy = 7;
+        gbc.gridwidth = 2;
+        gbc.weightx = 1.0;
+        gbc.weighty = 1.0;
+        gbc.fill = GridBagConstraints.BOTH;
+        panel.add(Box.createGlue(), gbc);
         return panel;
     }
 
