@@ -107,7 +107,7 @@ public class TicketManager {
             return "ADMIN_ORDERS:EMPTY";
         }
 
-        StringBuilder builder = new StringBuilder("ADMIN_ORDERS:");
+        StringBuilder builder = new StringBuilder("ADMIN_ORDERS:\n");
         boolean first = true;
         for (int i = 1; i <= orderSequence.get(); i++) {
             String orderId = String.format("%04d", i);
@@ -117,7 +117,7 @@ public class TicketManager {
             }
 
             if (!first) {
-                builder.append(',');
+                builder.append('\n');
             }
             builder.append(record);
             first = false;

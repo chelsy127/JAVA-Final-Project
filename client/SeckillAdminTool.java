@@ -44,7 +44,15 @@ public class SeckillAdminTool {
             BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()))
         ) {
             out.println(request);
-            return in.readLine();
+            StringBuilder response = new StringBuilder();
+            String line;
+            while ((line = in.readLine()) != null) {
+                if (response.length() > 0) {
+                    response.append(System.lineSeparator());
+                }
+                response.append(line);
+            }
+            return response.length() == 0 ? null : response.toString();
         } catch (Exception ex) {
             return null;
         }
