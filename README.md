@@ -47,6 +47,15 @@ JAVA-Final-Project/
 - `BOOK|票種|姓名|電話|張數`
   - 用途：送出購票請求
   - 回應格式：`SUCCESS:...` 或 `FAILED:...`
+- `RESET`
+  - 用途：重置伺服器票況與已購買紀錄
+  - 回應格式：`SUCCESS:...`
+- `ADMIN|SUMMARY`
+  - 用途：查詢後台統計（訂單數、售出票數、營收）
+  - 回應格式：`ADMIN_SUMMARY:...`
+- `ADMIN|ORDERS`
+  - 用途：查詢所有訂單明細
+  - 回應格式：`ADMIN_ORDERS:...`
 
 ## 開發環境
 
@@ -89,6 +98,19 @@ java server.SeckillClientWindow
 ```
 
 可開多個客戶端視窗模擬多人同時搶票。
+
+### 3.5) 管理端查詢工具（rc2）
+
+編譯後可在終端機執行：
+
+```powershell
+java client.SeckillAdminTool SUMMARY
+java client.SeckillAdminTool ORDERS
+```
+
+用途：
+- `SUMMARY`：看目前總訂單、總售出票數、總營收與分區售票數
+- `ORDERS`：看每一筆訂單明細（訂單號、姓名、電話、票種、張數、總價、時間戳）
 
 ### 4) 單機壓測腳本（不開 UI 也能測多人搶票）
 

@@ -34,6 +34,16 @@ public class ClientHandler implements Runnable {
                 return;
             }
 
+            if ("ADMIN|SUMMARY".equalsIgnoreCase(request.trim())) {
+                out.println(TicketManager.getAdminSummary());
+                return;
+            }
+
+            if ("ADMIN|ORDERS".equalsIgnoreCase(request.trim())) {
+                out.println(TicketManager.getAdminOrders());
+                return;
+            }
+
             if (request.startsWith("BOOK|")) {
                 // 格式：BOOK|票種|姓名|電話|張數
                 String[] parts = request.split("\\|", -1);
@@ -57,7 +67,7 @@ public class ClientHandler implements Runnable {
                 return;
             }
 
-            out.println("FAILED:不支援的請求，請使用 STATUS / BOOK / RESET");
+            out.println("FAILED:不支援的請求，請使用 STATUS / BOOK / RESET / ADMIN|SUMMARY / ADMIN|ORDERS");
         } catch (Exception e) {
             System.err.println("處理客戶端請求時噴錯: " + e.getMessage());
         } finally {

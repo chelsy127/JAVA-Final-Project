@@ -12,9 +12,15 @@ public class TicketManager {
     private static final Map<String, Integer> initialInventory = new LinkedHashMap<>();
     // 各票種剩餘張數
     private static final Map<String, AtomicInteger> ticketInventory = new ConcurrentHashMap<>();
+    // 各票種累積售出票數
+    private static final Map<String, AtomicInteger> soldByType = new ConcurrentHashMap<>();
     // 紀錄使用者電話是否已成功購票（避免重複購買）
     private static final Map<String, Integer> successRecords = new ConcurrentHashMap<>();
+    // 訂單資訊（供後台查詢）
+    private static final Map<String, String> orderRecords = new ConcurrentHashMap<>();
     private static final AtomicInteger orderSequence = new AtomicInteger(0);
+    private static final AtomicInteger totalTicketsSold = new AtomicInteger(0);
+    private static final AtomicInteger totalRevenue = new AtomicInteger(0);
 
     static {
         ticketPrices.put("VIP", 3800);
@@ -28,6 +34,10 @@ public class TicketManager {
         ticketInventory.put("VIP", new AtomicInteger(initialInventory.get("VIP")));
         ticketInventory.put("A區", new AtomicInteger(initialInventory.get("A區")));
         ticketInventory.put("B區", new AtomicInteger(initialInventory.get("B區")));
+
+        soldByType.put("VIP", new AtomicInteger(0));
+        soldByType.put("A區", new AtomicInteger(0));
+        soldByType.put("B區", new AtomicInteger(0));
     }
 
     public static synchronized String resetState() {
@@ -44,8 +54,51 @@ public class TicketManager {
         }
 
         successRecords.clear();
+        orderRecords.clear();
+        for (AtomicInteger sold : soldByType.values()) {
+            sold.set(0);
+        }
+        totalTicketsSold.set(0);
+        totalRevenue.set(0);
         orderSequence.set(0);
         return "SUCCESS:系統已重置票況與購票紀錄";
+    }
+
+    public static synchronized String getAdminSummary() {
+        int vipSold = soldByType.get("VIP").get();
+        int aSold = soldByType.get("A區").get();
+        int bSold = soldByType.get("B區").get();
+
+        return "ADMIN_SUMMARY:total_orders=" + orderSequence.get()
+                + ",total_tickets=" + totalTicketsSold.get()
+                + ",total_revenue=" + totalRevenue.get()
+                + ",sold_vip=" + vipSold
+                + ",sold_a=" + aSold
+                + ",sold_b=" + bSold;
+    }
+
+    public static synchronized String getAdminOrders() {
+        if (orderRecords.isEmpty()) {
+            return "ADMIN_ORDERS:EMPTY";
+        }
+
+        StringBuilder builder = new StringBuilder("ADMIN_ORDERS:");
+        boolean first = true;
+        for (int i = 1; i <= orderSequence.get(); i++) {
+            String orderId = String.format("%04d", i);
+            String record = orderRecords.get(orderId);
+            if (record == null) {
+                continue;
+            }
+
+            if (!first) {
+                builder.append(',');
+            }
+            builder.append(record);
+            first = false;
+        }
+
+        return builder.toString();
     }
 
     public static synchronized String getTicketStatus() {
@@ -99,10 +152,18 @@ public class TicketManager {
 
         int left = inventory.addAndGet(-quantity);
         successRecords.put(phoneKey, quantity);
+        soldByType.get(ticketType).addAndGet(quantity);
 
         int orderNo = orderSequence.incrementAndGet();
         int totalPrice = ticketPrices.get(ticketType) * quantity;
+        totalTicketsSold.addAndGet(quantity);
+        totalRevenue.addAndGet(totalPrice);
         String serial = String.format("%04d", orderNo);
+        long ts = System.currentTimeMillis();
+
+        // 訂單單行格式：訂單號|姓名|電話|票種|張數|總價|時間戳
+        orderRecords.put(serial, serial + "|" + userName + "|" + phone + "|" + ticketType + "|"
+            + quantity + "|" + totalPrice + "|" + ts);
 
         System.out.println("【成功】" + userName + "(" + phone + ") 購買 " + ticketType + " " + quantity
                 + " 張，訂單#" + serial + "，剩餘: " + left);
