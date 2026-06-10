@@ -1,9 +1,15 @@
 package client;
 
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -18,6 +24,7 @@ public class SeckillLoadTest {
     private static final String SERVER_IP = "127.0.0.1";
     private static final int SERVER_PORT = 8888;
     private static final String[] TICKET_TYPES = {"VIP", "A區", "B區"};
+    private static final String DEFAULT_CSV_FILE = "reports/loadtest-results.csv";
 
     public static void main(String[] args) throws Exception {
         if (args.length > 0 && "RESET".equalsIgnoreCase(args[0])) {
@@ -28,7 +35,28 @@ public class SeckillLoadTest {
         int users = parseIntArg(args, 0, 60);
         int threads = parseIntArg(args, 1, 20);
         String mode = args.length > 2 ? args[2].trim() : "RANDOM";
-        boolean resetBeforeTest = args.length > 3 && "RESET".equalsIgnoreCase(args[3]);
+
+        boolean resetBeforeTest = false;
+        boolean exportCsv = false;
+        String csvPath = DEFAULT_CSV_FILE;
+        for (int i = 3; i < args.length; i++) {
+            String flag = args[i] == null ? "" : args[i].trim();
+            if ("RESET".equalsIgnoreCase(flag)) {
+                resetBeforeTest = true;
+                continue;
+            }
+            if ("CSV".equalsIgnoreCase(flag)) {
+                exportCsv = true;
+                continue;
+            }
+            if (flag.regionMatches(true, 0, "CSV=", 0, 4)) {
+                exportCsv = true;
+                String value = flag.substring(4).trim();
+                if (!value.isEmpty()) {
+                    csvPath = value;
+                }
+            }
+        }
 
         System.out.println("=== Seckill Load Test Start ===");
         System.out.println("Server: " + SERVER_IP + ":" + SERVER_PORT);
@@ -111,9 +139,101 @@ public class SeckillLoadTest {
             }
         }
 
+        if (exportCsv) {
+            String csvResult = appendCsvRecord(csvPath, users, threads, mode, resetBeforeTest,
+                    successCount.get(), failedCount.get(), avgLatency, p95Latency, runMs, failReason);
+            System.out.println("\nCSV export: " + csvResult);
+        }
+
         String afterStatus = sendRequest("STATUS");
         System.out.println("\nStatus(after): " + afterStatus);
         System.out.println("=== Seckill Load Test End ===");
+    }
+
+    private static String appendCsvRecord(
+            String csvPath,
+            int users,
+            int threads,
+            String mode,
+            boolean resetBeforeTest,
+            int success,
+            int failed,
+            long avgLatency,
+            long p95Latency,
+            long runMs,
+            Map<String, AtomicInteger> failReason
+    ) {
+        try {
+            Path path = Paths.get(csvPath);
+            Path parent = path.getParent();
+            if (parent != null) {
+                Files.createDirectories(parent);
+            }
+
+            boolean writeHeader = !Files.exists(path) || Files.size(path) == 0;
+            String timestamp = String.valueOf(System.currentTimeMillis());
+            String topFailReason = "NONE";
+            int topFailCount = 0;
+            for (Map.Entry<String, AtomicInteger> entry : failReason.entrySet()) {
+                int count = entry.getValue().get();
+                if (count > topFailCount) {
+                    topFailCount = count;
+                    topFailReason = entry.getKey();
+                }
+            }
+
+            try (BufferedWriter writer = Files.newBufferedWriter(
+                    path,
+                    StandardCharsets.UTF_8,
+                    StandardOpenOption.CREATE,
+                    StandardOpenOption.APPEND
+            )) {
+                if (writeHeader) {
+                    writer.write("timestamp,users,threads,mode,reset_before_test,success,failed,avg_latency_ms,p95_latency_ms,run_ms,top_fail_reason,top_fail_count");
+                    writer.newLine();
+                }
+
+                writer.write(csvEscape(timestamp));
+                writer.write(',');
+                writer.write(String.valueOf(users));
+                writer.write(',');
+                writer.write(String.valueOf(threads));
+                writer.write(',');
+                writer.write(csvEscape(mode));
+                writer.write(',');
+                writer.write(String.valueOf(resetBeforeTest));
+                writer.write(',');
+                writer.write(String.valueOf(success));
+                writer.write(',');
+                writer.write(String.valueOf(failed));
+                writer.write(',');
+                writer.write(String.valueOf(avgLatency));
+                writer.write(',');
+                writer.write(String.valueOf(p95Latency));
+                writer.write(',');
+                writer.write(String.valueOf(runMs));
+                writer.write(',');
+                writer.write(csvEscape(topFailReason));
+                writer.write(',');
+                writer.write(String.valueOf(topFailCount));
+                writer.newLine();
+            }
+
+            return "OK -> " + path.toAbsolutePath();
+        } catch (Exception ex) {
+            return "FAILED -> " + ex.getMessage();
+        }
+    }
+
+    private static String csvEscape(String value) {
+        if (value == null) {
+            return "";
+        }
+        String escaped = value.replace("\"", "\"\"");
+        if (escaped.contains(",") || escaped.contains("\"") || escaped.contains("\n")) {
+            return "\"" + escaped + "\"";
+        }
+        return escaped;
     }
 
     private static void runResetOnly() {

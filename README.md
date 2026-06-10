@@ -125,11 +125,35 @@ java client.SeckillLoadTest RESET
 - 第 3 個參數：票種模式（`RANDOM` / `VIP` / `A區` / `B區`，預設 `RANDOM`）
 - 第 4 個參數：`RESET`（可選；代表壓測前先重置伺服器狀態）
 
+進階旗標（可從第 4 個參數起混用）：
+- `CSV`：輸出壓測結果到預設檔案 `reports/loadtest-results.csv`
+- `CSV=<路徑>`：輸出到指定 CSV 路徑
+
+CSV 範例：
+
+```powershell
+java client.SeckillLoadTest 120 30 RANDOM RESET CSV
+java client.SeckillLoadTest 120 30 VIP RESET CSV=reports/v2-vip.csv
+```
+
 輸出會包含：
 - 成功/失敗總數
 - 失敗原因統計
 - 平均延遲與 P95 延遲
 - 測試前後票況（`STATUS`）
+
+## v2 實驗建議流程
+
+建議每組測試都先 reset，再輸出 CSV：
+
+```powershell
+java client.SeckillLoadTest RESET
+java client.SeckillLoadTest 60 20 RANDOM RESET CSV=reports/exp-round1.csv
+java client.SeckillLoadTest 120 30 RANDOM RESET CSV=reports/exp-round1.csv
+java client.SeckillLoadTest 200 40 RANDOM RESET CSV=reports/exp-round1.csv
+```
+
+你可以直接把 `reports/*.csv` 當成期末報告的數據附件，做趨勢圖（Users 對 Success/Failed、P95 latency）。
 
 ## 網路設定
 
