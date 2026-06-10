@@ -29,6 +29,11 @@ public class ClientHandler implements Runnable {
                 return;
             }
 
+            if ("RESET".equalsIgnoreCase(request.trim())) {
+                out.println(TicketManager.resetState());
+                return;
+            }
+
             if (request.startsWith("BOOK|")) {
                 // 格式：BOOK|票種|姓名|電話|張數
                 String[] parts = request.split("\\|", -1);
@@ -52,7 +57,7 @@ public class ClientHandler implements Runnable {
                 return;
             }
 
-            out.println("FAILED:不支援的請求，請使用 STATUS 或 BOOK");
+            out.println("FAILED:不支援的請求，請使用 STATUS / BOOK / RESET");
         } catch (Exception e) {
             System.err.println("處理客戶端請求時噴錯: " + e.getMessage());
         } finally {

@@ -8,6 +8,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class TicketManager {
     // 票種與單價（依插入順序提供給前端顯示）
     private static final Map<String, Integer> ticketPrices = new LinkedHashMap<>();
+    // 各票種初始張數
+    private static final Map<String, Integer> initialInventory = new LinkedHashMap<>();
     // 各票種剩餘張數
     private static final Map<String, AtomicInteger> ticketInventory = new ConcurrentHashMap<>();
     // 紀錄使用者電話是否已成功購票（避免重複購買）
@@ -19,9 +21,31 @@ public class TicketManager {
         ticketPrices.put("A區", 2600);
         ticketPrices.put("B區", 1800);
 
-        ticketInventory.put("VIP", new AtomicInteger(6));
-        ticketInventory.put("A區", new AtomicInteger(12));
-        ticketInventory.put("B區", new AtomicInteger(20));
+        initialInventory.put("VIP", 6);
+        initialInventory.put("A區", 12);
+        initialInventory.put("B區", 20);
+
+        ticketInventory.put("VIP", new AtomicInteger(initialInventory.get("VIP")));
+        ticketInventory.put("A區", new AtomicInteger(initialInventory.get("A區")));
+        ticketInventory.put("B區", new AtomicInteger(initialInventory.get("B區")));
+    }
+
+    public static synchronized String resetState() {
+        for (Map.Entry<String, Integer> entry : initialInventory.entrySet()) {
+            String type = entry.getKey();
+            int value = entry.getValue();
+
+            AtomicInteger inventory = ticketInventory.get(type);
+            if (inventory == null) {
+                ticketInventory.put(type, new AtomicInteger(value));
+            } else {
+                inventory.set(value);
+            }
+        }
+
+        successRecords.clear();
+        orderSequence.set(0);
+        return "SUCCESS:系統已重置票況與購票紀錄";
     }
 
     public static synchronized String getTicketStatus() {
