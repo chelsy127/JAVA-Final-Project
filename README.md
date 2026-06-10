@@ -48,14 +48,21 @@ JAVA-Final-Project/
   - 用途：送出購票請求
   - 回應格式：`SUCCESS:...` 或 `FAILED:...`
 - `RESET`
-  - 用途：重置伺服器票況與已購買紀錄
+  - 用途：重置伺服器票況與已購買紀錄（需 token）
   - 回應格式：`SUCCESS:...`
 - `ADMIN|SUMMARY`
-  - 用途：查詢後台統計（訂單數、售出票數、營收）
+  - 用途：查詢後台統計（需 token）
   - 回應格式：`ADMIN_SUMMARY:...`
 - `ADMIN|ORDERS`
-  - 用途：查詢所有訂單明細
+  - 用途：查詢所有訂單明細（需 token）
   - 回應格式：`ADMIN_ORDERS:...`
+
+實際請求格式：
+- `RESET|token`
+- `ADMIN|SUMMARY|token`
+- `ADMIN|ORDERS|token`
+
+預設 token 為 `ncku-admin`，可透過環境變數 `SECKILL_ADMIN_TOKEN` 覆蓋。
 
 ## 開發環境
 
@@ -106,6 +113,13 @@ java server.SeckillClientWindow
 ```powershell
 java client.SeckillAdminTool SUMMARY
 java client.SeckillAdminTool ORDERS
+```
+
+指定 token：
+
+```powershell
+java client.SeckillAdminTool SUMMARY myToken
+java client.SeckillAdminTool ORDERS myToken
 ```
 
 用途：
@@ -175,12 +189,24 @@ java client.SeckillLoadTest 120 30 RANDOM RESET CSV=reports/exp-round1.csv
 java client.SeckillLoadTest 200 40 RANDOM RESET CSV=reports/exp-round1.csv
 ```
 
+若你有自訂 token，可在旗標補上 `TOKEN=<token>`：
+
+```powershell
+java client.SeckillLoadTest 120 30 RANDOM RESET CSV TOKEN=myToken
+java client.SeckillLoadTest RESET myToken
+```
+
 你可以直接把 `reports/*.csv` 當成期末報告的數據附件，做趨勢圖（Users 對 Success/Failed、P95 latency）。
 
 ## 網路設定
 
 - 目前客戶端預設連線：`127.0.0.1:8888`
 - 若要跨電腦測試，請修改 `SeckillClientWindow.java` 的 `SERVER_IP` 為伺服器主機區網 IP（例如 `192.168.x.x`）
+
+## v2 正式版重點
+
+- 持久化：伺服器會把票務/訂單狀態寫入 `data/ticket-state.bin`，重啟後可恢復。
+- 後台安全：RESET 與 ADMIN 指令需要 token 才可操作。
 
 ## Git 記錄建議（期末報告用）
 

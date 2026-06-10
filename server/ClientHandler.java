@@ -6,6 +6,9 @@ import java.io.PrintWriter;
 import java.net.Socket;
 
 public class ClientHandler implements Runnable {
+    private static final String ADMIN_TOKEN =
+            System.getenv().getOrDefault("SECKILL_ADMIN_TOKEN", "ncku-admin");
+
     private final Socket socket;
 
     public ClientHandler(Socket socket) {
@@ -29,18 +32,45 @@ public class ClientHandler implements Runnable {
                 return;
             }
 
-            if ("RESET".equalsIgnoreCase(request.trim())) {
+            if (request.trim().startsWith("RESET")) {
+                String[] parts = request.split("\\|", -1);
+                if (parts.length != 2) {
+                    out.println("FAILED:RESET 格式錯誤，請使用 RESET|token");
+                    return;
+                }
+
+                if (!ADMIN_TOKEN.equals(parts[1].trim())) {
+                    out.println("FAILED:未授權的 RESET 指令");
+                    return;
+                }
+
                 out.println(TicketManager.resetState());
                 return;
             }
 
-            if ("ADMIN|SUMMARY".equalsIgnoreCase(request.trim())) {
-                out.println(TicketManager.getAdminSummary());
-                return;
-            }
+            if (request.trim().startsWith("ADMIN|")) {
+                String[] parts = request.split("\\|", -1);
+                if (parts.length != 3) {
+                    out.println("FAILED:ADMIN 格式錯誤，請使用 ADMIN|SUMMARY|token 或 ADMIN|ORDERS|token");
+                    return;
+                }
 
-            if ("ADMIN|ORDERS".equalsIgnoreCase(request.trim())) {
-                out.println(TicketManager.getAdminOrders());
+                if (!ADMIN_TOKEN.equals(parts[2].trim())) {
+                    out.println("FAILED:未授權的 ADMIN 指令");
+                    return;
+                }
+
+                if ("SUMMARY".equalsIgnoreCase(parts[1].trim())) {
+                    out.println(TicketManager.getAdminSummary());
+                    return;
+                }
+
+                if ("ORDERS".equalsIgnoreCase(parts[1].trim())) {
+                    out.println(TicketManager.getAdminOrders());
+                    return;
+                }
+
+                out.println("FAILED:未知的 ADMIN 子指令，僅支援 SUMMARY 或 ORDERS");
                 return;
             }
 
@@ -67,7 +97,7 @@ public class ClientHandler implements Runnable {
                 return;
             }
 
-            out.println("FAILED:不支援的請求，請使用 STATUS / BOOK / RESET / ADMIN|SUMMARY / ADMIN|ORDERS");
+            out.println("FAILED:不支援的請求，請使用 STATUS / BOOK / RESET|token / ADMIN|SUMMARY|token / ADMIN|ORDERS|token");
         } catch (Exception e) {
             System.err.println("處理客戶端請求時噴錯: " + e.getMessage());
         } finally {

@@ -1,11 +1,20 @@
 package server;
 
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.io.Serializable;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class TicketManager {
+    private static final String STATE_FILE = "data/ticket-state.bin";
+
     // 票種與單價（依插入順序提供給前端顯示）
     private static final Map<String, Integer> ticketPrices = new LinkedHashMap<>();
     // 各票種初始張數
@@ -21,6 +30,18 @@ public class TicketManager {
     private static final AtomicInteger orderSequence = new AtomicInteger(0);
     private static final AtomicInteger totalTicketsSold = new AtomicInteger(0);
     private static final AtomicInteger totalRevenue = new AtomicInteger(0);
+
+    private static class StateSnapshot implements Serializable {
+        private static final long serialVersionUID = 1L;
+
+        Map<String, Integer> inventory = new LinkedHashMap<>();
+        Map<String, Integer> sold = new LinkedHashMap<>();
+        Map<String, Integer> success = new LinkedHashMap<>();
+        Map<String, String> orders = new LinkedHashMap<>();
+        int orderSeq;
+        int totalSold;
+        int revenue;
+    }
 
     static {
         ticketPrices.put("VIP", 3800);
@@ -38,6 +59,8 @@ public class TicketManager {
         soldByType.put("VIP", new AtomicInteger(0));
         soldByType.put("A區", new AtomicInteger(0));
         soldByType.put("B區", new AtomicInteger(0));
+
+        loadStateFromDisk();
     }
 
     public static synchronized String resetState() {
@@ -61,6 +84,8 @@ public class TicketManager {
         totalTicketsSold.set(0);
         totalRevenue.set(0);
         orderSequence.set(0);
+
+        saveStateToDisk();
         return "SUCCESS:系統已重置票況與購票紀錄";
     }
 
@@ -168,7 +193,77 @@ public class TicketManager {
         System.out.println("【成功】" + userName + "(" + phone + ") 購買 " + ticketType + " " + quantity
                 + " 張，訂單#" + serial + "，剩餘: " + left);
 
+        saveStateToDisk();
+
         return "SUCCESS:訂票成功！訂單#" + serial + "，票種:" + ticketType + "，張數:" + quantity
                 + "，總金額:$" + totalPrice + "，剩餘:" + left;
+    }
+
+    private static void loadStateFromDisk() {
+        Path path = Paths.get(STATE_FILE);
+        if (!Files.exists(path)) {
+            return;
+        }
+
+        try (ObjectInputStream in = new ObjectInputStream(Files.newInputStream(path))) {
+            Object raw = in.readObject();
+            if (!(raw instanceof StateSnapshot)) {
+                return;
+            }
+
+            StateSnapshot snapshot = (StateSnapshot) raw;
+
+            for (Map.Entry<String, Integer> entry : initialInventory.entrySet()) {
+                String type = entry.getKey();
+                int fallbackInventory = entry.getValue();
+
+                int inventoryValue = snapshot.inventory.getOrDefault(type, fallbackInventory);
+                int soldValue = snapshot.sold.getOrDefault(type, 0);
+
+                ticketInventory.get(type).set(Math.max(0, inventoryValue));
+                soldByType.get(type).set(Math.max(0, soldValue));
+            }
+
+            successRecords.clear();
+            successRecords.putAll(snapshot.success);
+
+            orderRecords.clear();
+            orderRecords.putAll(snapshot.orders);
+
+            orderSequence.set(Math.max(0, snapshot.orderSeq));
+            totalTicketsSold.set(Math.max(0, snapshot.totalSold));
+            totalRevenue.set(Math.max(0, snapshot.revenue));
+        } catch (Exception ex) {
+            System.err.println("讀取票務狀態失敗，將使用預設初始值: " + ex.getMessage());
+        }
+    }
+
+    private static void saveStateToDisk() {
+        Path path = Paths.get(STATE_FILE);
+        Path parent = path.getParent();
+
+        try {
+            if (parent != null) {
+                Files.createDirectories(parent);
+            }
+
+            StateSnapshot snapshot = new StateSnapshot();
+            for (String type : initialInventory.keySet()) {
+                snapshot.inventory.put(type, ticketInventory.get(type).get());
+                snapshot.sold.put(type, soldByType.get(type).get());
+            }
+
+            snapshot.success.putAll(successRecords);
+            snapshot.orders.putAll(orderRecords);
+            snapshot.orderSeq = orderSequence.get();
+            snapshot.totalSold = totalTicketsSold.get();
+            snapshot.revenue = totalRevenue.get();
+
+            try (ObjectOutputStream out = new ObjectOutputStream(Files.newOutputStream(path))) {
+                out.writeObject(snapshot);
+            }
+        } catch (IOException ex) {
+            System.err.println("寫入票務狀態失敗: " + ex.getMessage());
+        }
     }
 }

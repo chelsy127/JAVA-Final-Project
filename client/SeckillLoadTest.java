@@ -25,10 +25,13 @@ public class SeckillLoadTest {
     private static final int SERVER_PORT = 8888;
     private static final String[] TICKET_TYPES = {"VIP", "A區", "B區"};
     private static final String DEFAULT_CSV_FILE = "reports/loadtest-results.csv";
+    private static final String DEFAULT_ADMIN_TOKEN =
+            System.getenv().getOrDefault("SECKILL_ADMIN_TOKEN", "ncku-admin");
 
     public static void main(String[] args) throws Exception {
         if (args.length > 0 && "RESET".equalsIgnoreCase(args[0])) {
-            runResetOnly();
+            String token = args.length > 1 ? args[1].trim() : DEFAULT_ADMIN_TOKEN;
+            runResetOnly(token);
             return;
         }
 
@@ -39,6 +42,7 @@ public class SeckillLoadTest {
         boolean resetBeforeTest = false;
         boolean exportCsv = false;
         String csvPath = DEFAULT_CSV_FILE;
+        String adminToken = DEFAULT_ADMIN_TOKEN;
         for (int i = 3; i < args.length; i++) {
             String flag = args[i] == null ? "" : args[i].trim();
             if ("RESET".equalsIgnoreCase(flag)) {
@@ -55,6 +59,13 @@ public class SeckillLoadTest {
                 if (!value.isEmpty()) {
                     csvPath = value;
                 }
+                continue;
+            }
+            if (flag.regionMatches(true, 0, "TOKEN=", 0, 6)) {
+                String value = flag.substring(6).trim();
+                if (!value.isEmpty()) {
+                    adminToken = value;
+                }
             }
         }
 
@@ -63,7 +74,7 @@ public class SeckillLoadTest {
         System.out.println("Users: " + users + ", Threads: " + threads + ", Mode: " + mode);
 
         if (resetBeforeTest) {
-            String resetResp = sendRequest("RESET");
+            String resetResp = sendRequest("RESET|" + adminToken);
             System.out.println("Reset(before): " + resetResp);
         }
 
@@ -236,14 +247,14 @@ public class SeckillLoadTest {
         return escaped;
     }
 
-    private static void runResetOnly() {
+    private static void runResetOnly(String token) {
         System.out.println("=== Seckill Reset Command ===");
         System.out.println("Server: " + SERVER_IP + ":" + SERVER_PORT);
 
         String beforeStatus = sendRequest("STATUS");
         System.out.println("Status(before): " + beforeStatus);
 
-        String resetResponse = sendRequest("RESET");
+        String resetResponse = sendRequest("RESET|" + token);
         System.out.println("Reset(response): " + resetResponse);
 
         String afterStatus = sendRequest("STATUS");

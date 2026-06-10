@@ -8,20 +8,23 @@ import java.net.Socket;
 public class SeckillAdminTool {
     private static final String SERVER_IP = "127.0.0.1";
     private static final int SERVER_PORT = 8888;
+    private static final String DEFAULT_ADMIN_TOKEN =
+            System.getenv().getOrDefault("SECKILL_ADMIN_TOKEN", "ncku-admin");
 
     public static void main(String[] args) {
         String action = args.length > 0 ? args[0].trim().toUpperCase() : "SUMMARY";
+        String token = args.length > 1 ? args[1].trim() : DEFAULT_ADMIN_TOKEN;
         String request;
 
         switch (action) {
             case "SUMMARY":
-                request = "ADMIN|SUMMARY";
+                request = "ADMIN|SUMMARY|" + token;
                 break;
             case "ORDERS":
-                request = "ADMIN|ORDERS";
+                request = "ADMIN|ORDERS|" + token;
                 break;
             default:
-                System.out.println("Usage: java client.SeckillAdminTool [SUMMARY|ORDERS]");
+                System.out.println("Usage: java client.SeckillAdminTool [SUMMARY|ORDERS] [token]");
                 return;
         }
 
