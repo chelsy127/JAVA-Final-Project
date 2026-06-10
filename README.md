@@ -12,6 +12,8 @@
 ```text
 JAVA-Final-Project/
 ├─ client/
+│  ├─ SeckillAdminTool.java     # 終端機管理工具（main）
+│  ├─ SeckillLoadTest.java      # 單機壓測腳本（main）
 │  └─ SeckillServer.java        # 伺服器主程式（main）
 └─ server/
    ├─ SeckillClientWindow.java  # Swing 客戶端主程式（main）
@@ -77,7 +79,7 @@ JAVA-Final-Project/
 
 ```powershell
 cd c:\c\.vscode\JAVA\JAVA-Final-Project
-javac .\client\SeckillServer.java .\server\ClientHandler.java .\server\SeckillClientWindow.java .\server\TicketManager.java
+javac .\client\SeckillAdminTool.java .\client\SeckillLoadTest.java .\client\SeckillServer.java .\server\ClientHandler.java .\server\SeckillClientWindow.java .\server\TicketManager.java
 ```
 
 ### 2) 啟動伺服器
@@ -223,6 +225,21 @@ java client.SeckillLoadTest RESET myToken
 - `perf:` 效能優化
 - `fix:` 修正錯誤
 - `docs:` 文件更新
+
+## 版本演進表
+
+| 版本 | Tag | 更新重點 |
+| --- | --- | --- |
+| 初始版本 | `7abc822`（無 tag） | 建立最初的 Socket + Swing 搶票雛形 |
+| 基線版本 | `v0-baseline` | 記錄 AI 優化前的原始狀態 |
+| v1.0 | `v1-round1-ui-upgrade` | 改為兩步驟搶票流程、多票種分區、驗證碼與剩餘票數顯示 |
+| v1.1 | `v1.1` | 修正第二頁表單跑位，驗證碼可點擊刷新 |
+| v1.2 | `v1.2` | 進入第二次購票時自動清空資料，張數改為下拉選單 |
+| v1.3 | `v1.3` | 新增單機壓測腳本，可模擬多人併發搶票 |
+| v1.4 | `v1.4` | 新增 RESET 指令，可不重啟 server 重置票況與購票紀錄 |
+| v2.0.0-rc1 | `v2.0.0-rc1` | 壓測結果可輸出 CSV，方便做圖表與實驗分析 |
+| v2.0.0-rc2 | `v2.0.0-rc2` | 新增 ADMIN 查詢指令與管理端工具，統計訂單與營收 |
+| v2.0.0 | `v2.0.0` | 加入持久化、管理指令 token 驗證，完成正式版發行 |
 
 ## 後續可優化方向
 
