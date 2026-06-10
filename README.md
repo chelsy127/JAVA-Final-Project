@@ -90,6 +90,47 @@ java server.SeckillClientWindow
 
 可開多個客戶端視窗模擬多人同時搶票。
 
+### 4) 單機壓測腳本（不開 UI 也能測多人搶票）
+
+如果你只有一台電腦，可以用壓測程式一次模擬多個客戶端連線。
+
+先編譯：
+
+```powershell
+cd c:\c\.vscode\JAVA\JAVA-Final-Project
+javac .\client\SeckillLoadTest.java
+```
+
+執行（範例）：
+
+```powershell
+java client.SeckillLoadTest 80 20 RANDOM
+```
+
+測試前先自動重置（建議）：
+
+```powershell
+java client.SeckillLoadTest 80 20 RANDOM RESET
+```
+
+只執行重置指令：
+
+```powershell
+java client.SeckillLoadTest RESET
+```
+
+參數說明：
+- 第 1 個參數：模擬使用者數（預設 60）
+- 第 2 個參數：執行緒數（預設 20）
+- 第 3 個參數：票種模式（`RANDOM` / `VIP` / `A區` / `B區`，預設 `RANDOM`）
+- 第 4 個參數：`RESET`（可選；代表壓測前先重置伺服器狀態）
+
+輸出會包含：
+- 成功/失敗總數
+- 失敗原因統計
+- 平均延遲與 P95 延遲
+- 測試前後票況（`STATUS`）
+
 ## 網路設定
 
 - 目前客戶端預設連線：`127.0.0.1:8888`
