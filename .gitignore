@@ -1,0 +1,9 @@
+# Java build outputs
+*.class
+
+# Runtime data
+data/ticket-state.bin
+
+# Load test reports
+reports/
+*.csv
