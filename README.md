@@ -116,13 +116,15 @@ java server.SeckillClientWindow
 
 可開多個客戶端視窗模擬多人同時搶票。
 
-### 3.5) 管理端查詢工具（rc2）
+### 3.5) 管理/查單工具（v3）
 
 編譯後可在終端機執行：
 
 ```powershell
 java client.SeckillAdminTool SUMMARY
 java client.SeckillAdminTool ORDERS
+java client.SeckillAdminTool PAY 0001
+java client.SeckillAdminTool QUERY 0912345678
 ```
 
 指定 token：
@@ -135,6 +137,8 @@ java client.SeckillAdminTool ORDERS myToken
 用途：
 - `SUMMARY`：看目前總訂單、總售出票數、總營收與分區售票數
 - `ORDERS`：看每一筆訂單明細（訂單號、姓名、電話、票種、張數、總價、時間戳）
+- `PAY`：對指定訂單號補付款（將 `UNPAID` 轉為 `PAID`）
+- `QUERY`：依電話查詢最新訂單狀態
 
 ### 4) 單機壓測腳本（不開 UI 也能測多人搶票）
 
@@ -172,7 +176,7 @@ java client.SeckillLoadTest RESET
 - 第 4 個參數：`RESET`（可選；代表壓測前先重置伺服器狀態）
 
 進階旗標（可從第 4 個參數起混用）：
-- `CSV`：輸出壓測結果到預設檔案 `reports/loadtest-results.csv`
+- `CSV`：輸出壓測結果到預設檔案 `reports/loadtest-results-v3.csv`
 - `CSV=<路徑>`：輸出到指定 CSV 路徑
 - `PAYRATE=<0~100>`：成功預約後實際付款比例（預設 `100`）
 

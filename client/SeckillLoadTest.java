@@ -24,7 +24,7 @@ public class SeckillLoadTest {
     private static final String SERVER_IP = "127.0.0.1";
     private static final int SERVER_PORT = 8888;
     private static final String[] TICKET_TYPES = {"VIP", "A區", "B區"};
-    private static final String DEFAULT_CSV_FILE = "reports/loadtest-results.csv";
+    private static final String DEFAULT_CSV_FILE = "reports/loadtest-results-v3.csv";
     private static final String DEFAULT_ADMIN_TOKEN =
             System.getenv().getOrDefault("SECKILL_ADMIN_TOKEN", "ncku-admin");
 
@@ -238,7 +238,20 @@ public class SeckillLoadTest {
             Map<String, AtomicInteger> failReason
     ) {
         try {
+            final String header = "timestamp,users,threads,mode,reset_before_test,pay_rate,success,failed,paid_success,unpaid_reserved,query_ok,query_mismatch,avg_latency_ms,p95_latency_ms,run_ms,top_fail_reason,top_fail_count";
             Path path = Paths.get(csvPath);
+            if (Files.exists(path) && Files.size(path) > 0) {
+                try (BufferedReader reader = Files.newBufferedReader(path, StandardCharsets.UTF_8)) {
+                    String firstLine = reader.readLine();
+                    if (firstLine != null && !header.equals(firstLine)) {
+                        String fileName = path.getFileName().toString();
+                        int dot = fileName.lastIndexOf('.');
+                        String baseName = dot > 0 ? fileName.substring(0, dot) : fileName;
+                        String ext = dot > 0 ? fileName.substring(dot) : "";
+                        path = path.resolveSibling(baseName + "-v3" + ext);
+                    }
+                }
+            }
             Path parent = path.getParent();
             if (parent != null) {
                 Files.createDirectories(parent);
@@ -263,7 +276,7 @@ public class SeckillLoadTest {
                     StandardOpenOption.APPEND
             )) {
                 if (writeHeader) {
-                    writer.write("timestamp,users,threads,mode,reset_before_test,pay_rate,success,failed,paid_success,unpaid_reserved,query_ok,query_mismatch,avg_latency_ms,p95_latency_ms,run_ms,top_fail_reason,top_fail_count");
+                    writer.write(header);
                     writer.newLine();
                 }
 

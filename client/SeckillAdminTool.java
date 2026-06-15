@@ -13,18 +13,37 @@ public class SeckillAdminTool {
 
     public static void main(String[] args) {
         String action = args.length > 0 ? args[0].trim().toUpperCase() : "SUMMARY";
-        String token = args.length > 1 ? args[1].trim() : DEFAULT_ADMIN_TOKEN;
         String request;
 
         switch (action) {
             case "SUMMARY":
-                request = "ADMIN|SUMMARY|" + token;
+                String summaryToken = args.length > 1 ? args[1].trim() : DEFAULT_ADMIN_TOKEN;
+                request = "ADMIN|SUMMARY|" + summaryToken;
                 break;
             case "ORDERS":
-                request = "ADMIN|ORDERS|" + token;
+                String ordersToken = args.length > 1 ? args[1].trim() : DEFAULT_ADMIN_TOKEN;
+                request = "ADMIN|ORDERS|" + ordersToken;
+                break;
+            case "PAY":
+                if (args.length < 2 || args[1].trim().isEmpty()) {
+                    System.out.println("Usage: java client.SeckillAdminTool PAY <orderId>");
+                    return;
+                }
+                request = "PAY|" + args[1].trim();
+                break;
+            case "QUERY":
+                if (args.length < 2 || args[1].trim().isEmpty()) {
+                    System.out.println("Usage: java client.SeckillAdminTool QUERY <phone>");
+                    return;
+                }
+                request = "QUERY|" + args[1].trim();
                 break;
             default:
-                System.out.println("Usage: java client.SeckillAdminTool [SUMMARY|ORDERS] [token]");
+                System.out.println("Usage:");
+                System.out.println("  java client.SeckillAdminTool SUMMARY [token]");
+                System.out.println("  java client.SeckillAdminTool ORDERS [token]");
+                System.out.println("  java client.SeckillAdminTool PAY <orderId>");
+                System.out.println("  java client.SeckillAdminTool QUERY <phone>");
                 return;
         }
 
