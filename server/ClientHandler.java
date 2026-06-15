@@ -97,7 +97,31 @@ public class ClientHandler implements Runnable {
                 return;
             }
 
-            out.println("FAILED:不支援的請求，請使用 STATUS / BOOK / RESET|token / ADMIN|SUMMARY|token / ADMIN|ORDERS|token");
+            if (request.startsWith("PAY|")) {
+                String[] parts = request.split("\\|", -1);
+                if (parts.length != 2) {
+                    out.println("FAILED:PAY 請求格式錯誤");
+                    return;
+                }
+
+                String orderId = parts[1].trim();
+                out.println(TicketManager.payOrder(orderId));
+                return;
+            }
+
+            if (request.startsWith("QUERY|")) {
+                String[] parts = request.split("\\|", -1);
+                if (parts.length != 2) {
+                    out.println("FAILED:QUERY 請求格式錯誤");
+                    return;
+                }
+
+                String phone = parts[1].trim();
+                out.println(TicketManager.queryOrderByPhone(phone));
+                return;
+            }
+
+            out.println("FAILED:不支援的請求，請使用 STATUS / BOOK / PAY / QUERY / RESET|token / ADMIN|SUMMARY|token / ADMIN|ORDERS|token");
         } catch (Exception e) {
             System.err.println("處理客戶端請求時噴錯: " + e.getMessage());
         } finally {

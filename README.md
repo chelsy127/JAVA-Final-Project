@@ -49,6 +49,12 @@ JAVA-Final-Project/
 - `BOOK|票種|姓名|電話|張數`
   - 用途：送出購票請求
   - 回應格式：`SUCCESS:...` 或 `FAILED:...`
+- `PAY|訂單號`
+  - 用途：完成付款，將預約訂單轉為已付款
+  - 回應格式：`SUCCESS:...` 或 `FAILED:...`
+- `QUERY|電話`
+  - 用途：依電話查詢最新訂單狀態
+  - 回應格式：`QUERY_RES:訂單號|姓名|票種|張數|總價|狀態`
 - `RESET`
   - 用途：重置伺服器票況與已購買紀錄（需 token）
   - 回應格式：`SUCCESS:...`
@@ -63,6 +69,8 @@ JAVA-Final-Project/
 - `RESET|token`
 - `ADMIN|SUMMARY|token`
 - `ADMIN|ORDERS|token`
+- `PAY|orderId`
+- `QUERY|phone`
 
 預設 token 為 `ncku-admin`，可透過環境變數 `SECKILL_ADMIN_TOKEN` 覆蓋。
 
@@ -166,16 +174,20 @@ java client.SeckillLoadTest RESET
 進階旗標（可從第 4 個參數起混用）：
 - `CSV`：輸出壓測結果到預設檔案 `reports/loadtest-results.csv`
 - `CSV=<路徑>`：輸出到指定 CSV 路徑
+- `PAYRATE=<0~100>`：成功預約後實際付款比例（預設 `100`）
 
 CSV 範例：
 
 ```powershell
 java client.SeckillLoadTest 120 30 RANDOM RESET CSV
 java client.SeckillLoadTest 120 30 VIP RESET CSV=reports/v2-vip.csv
+java client.SeckillLoadTest 120 30 RANDOM RESET PAYRATE=70 CSV=reports/v3-mixed.csv
 ```
 
 輸出會包含：
 - 成功/失敗總數
+- 付款成功數 / 未付款保留數
+- 訂單查詢成功數 / 查詢不一致數
 - 失敗原因統計
 - 平均延遲與 P95 延遲
 - 測試前後票況（`STATUS`）
@@ -210,6 +222,13 @@ java client.SeckillLoadTest RESET myToken
 - 持久化：伺服器會把票務/訂單狀態寫入 `data/ticket-state.bin`，重啟後可恢復。
 - 後台安全：RESET 與 ADMIN 指令需要 token 才可操作。
 
+## v3 重點（付款與查單）
+
+- 訂單生命週期：`UNPAID -> PAID`，逾時未付款會自動變成 `EXPIRED` 並釋回庫存。
+- 前台新協定：`PAY|訂單號`、`QUERY|電話`。
+- 訂單查詢：可查詢電話對應的最新訂單與狀態。
+- 壓測升級：可用 `PAYRATE` 模擬「只預約不付款」場景，驗證逾時釋票與查單流程。
+
 ## Git 記錄建議（期末報告用）
 
 建議保留以下里程碑：
@@ -240,6 +259,7 @@ java client.SeckillLoadTest RESET myToken
 | v2.0.0-rc1 | `v2.0.0-rc1` | 壓測結果可輸出 CSV，方便做圖表與實驗分析 |
 | v2.0.0-rc2 | `v2.0.0-rc2` | 新增 ADMIN 查詢指令與管理端工具，統計訂單與營收 |
 | v2.0.0 | `v2.0.0` | 加入持久化、管理指令 token 驗證，完成正式版發行 |
+| v3.0.0 | `v3.0.0` | 新增付款/查單、訂單逾時釋票與壓測付款比例模擬 |
 
 ## v3 未來方向
 

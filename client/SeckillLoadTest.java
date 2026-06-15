@@ -28,6 +28,13 @@ public class SeckillLoadTest {
     private static final String DEFAULT_ADMIN_TOKEN =
             System.getenv().getOrDefault("SECKILL_ADMIN_TOKEN", "ncku-admin");
 
+    private static class LoadMetrics {
+        int paidSuccess;
+        int unpaidReserved;
+        int queryOk;
+        int queryMismatch;
+    }
+
     public static void main(String[] args) throws Exception {
         if (args.length > 0 && "RESET".equalsIgnoreCase(args[0])) {
             String token = args.length > 1 ? args[1].trim() : DEFAULT_ADMIN_TOKEN;
@@ -43,6 +50,7 @@ public class SeckillLoadTest {
         boolean exportCsv = false;
         String csvPath = DEFAULT_CSV_FILE;
         String adminToken = DEFAULT_ADMIN_TOKEN;
+        int payRate = 100;
         for (int i = 3; i < args.length; i++) {
             String flag = args[i] == null ? "" : args[i].trim();
             if ("RESET".equalsIgnoreCase(flag)) {
@@ -66,12 +74,31 @@ public class SeckillLoadTest {
                 if (!value.isEmpty()) {
                     adminToken = value;
                 }
+                continue;
+            }
+            if (flag.regionMatches(true, 0, "PAYRATE=", 0, 8)) {
+                String value = flag.substring(8).trim();
+                if (!value.isEmpty()) {
+                    try {
+                        payRate = Integer.parseInt(value);
+                    } catch (NumberFormatException ignored) {
+                        // 使用預設值
+                    }
+                }
             }
         }
+        if (payRate < 0) {
+            payRate = 0;
+        }
+        if (payRate > 100) {
+            payRate = 100;
+        }
+        final int payRateFinal = payRate;
 
         System.out.println("=== Seckill Load Test Start ===");
         System.out.println("Server: " + SERVER_IP + ":" + SERVER_PORT);
         System.out.println("Users: " + users + ", Threads: " + threads + ", Mode: " + mode);
+        System.out.println("PayRate: " + payRateFinal + "%");
 
         if (resetBeforeTest) {
             String resetResp = sendRequest("RESET|" + adminToken);
@@ -88,6 +115,7 @@ public class SeckillLoadTest {
         AtomicInteger failedCount = new AtomicInteger(0);
         Map<String, AtomicInteger> failReason = new ConcurrentHashMap<>();
         List<Long> latencies = new ArrayList<>();
+        LoadMetrics metrics = new LoadMetrics();
 
         long begin = System.currentTimeMillis();
         for (int i = 0; i < users; i++) {
@@ -110,6 +138,32 @@ public class SeckillLoadTest {
 
                     if (response != null && response.startsWith("SUCCESS:")) {
                         successCount.incrementAndGet();
+                        String orderId = parseOrderId(response);
+                        if (orderId != null) {
+                            if ((idx % 100) < payRateFinal) {
+                                String payResp = sendRequest("PAY|" + orderId);
+                                if (payResp != null && payResp.startsWith("SUCCESS:")) {
+                                    synchronized (metrics) {
+                                        metrics.paidSuccess++;
+                                    }
+                                }
+                            } else {
+                                synchronized (metrics) {
+                                    metrics.unpaidReserved++;
+                                }
+                            }
+
+                            String queryResp = sendRequest("QUERY|" + phone);
+                            if (queryResp != null && queryResp.startsWith("QUERY_RES:")) {
+                                synchronized (metrics) {
+                                    metrics.queryOk++;
+                                }
+                            } else {
+                                synchronized (metrics) {
+                                    metrics.queryMismatch++;
+                                }
+                            }
+                        }
                     } else {
                         failedCount.incrementAndGet();
                         String key = normalizeFailReason(response);
@@ -141,6 +195,8 @@ public class SeckillLoadTest {
         System.out.println("Warmup(ms): " + warmupMs + ", Run(ms): " + runMs + ", Total(ms): " + totalMs);
         System.out.println("Success: " + successCount.get() + ", Failed: " + failedCount.get());
         System.out.println("Avg latency(ms): " + avgLatency + ", P95 latency(ms): " + p95Latency);
+        System.out.println("Paid success: " + metrics.paidSuccess + ", Unpaid reserved: " + metrics.unpaidReserved);
+        System.out.println("Query OK: " + metrics.queryOk + ", Query mismatch: " + metrics.queryMismatch);
 
         if (!failReason.isEmpty()) {
             System.out.println("\nFailed reason breakdown:");
@@ -152,7 +208,9 @@ public class SeckillLoadTest {
 
         if (exportCsv) {
             String csvResult = appendCsvRecord(csvPath, users, threads, mode, resetBeforeTest,
-                    successCount.get(), failedCount.get(), avgLatency, p95Latency, runMs, failReason);
+                    successCount.get(), failedCount.get(), avgLatency, p95Latency, runMs,
+                    metrics.paidSuccess, metrics.unpaidReserved, metrics.queryOk, metrics.queryMismatch,
+                    payRateFinal, failReason);
             System.out.println("\nCSV export: " + csvResult);
         }
 
@@ -172,6 +230,11 @@ public class SeckillLoadTest {
             long avgLatency,
             long p95Latency,
             long runMs,
+                int paidSuccess,
+                int unpaidReserved,
+                int queryOk,
+                int queryMismatch,
+                int payRate,
             Map<String, AtomicInteger> failReason
     ) {
         try {
@@ -200,7 +263,7 @@ public class SeckillLoadTest {
                     StandardOpenOption.APPEND
             )) {
                 if (writeHeader) {
-                    writer.write("timestamp,users,threads,mode,reset_before_test,success,failed,avg_latency_ms,p95_latency_ms,run_ms,top_fail_reason,top_fail_count");
+                    writer.write("timestamp,users,threads,mode,reset_before_test,pay_rate,success,failed,paid_success,unpaid_reserved,query_ok,query_mismatch,avg_latency_ms,p95_latency_ms,run_ms,top_fail_reason,top_fail_count");
                     writer.newLine();
                 }
 
@@ -214,9 +277,19 @@ public class SeckillLoadTest {
                 writer.write(',');
                 writer.write(String.valueOf(resetBeforeTest));
                 writer.write(',');
+                writer.write(String.valueOf(payRate));
+                writer.write(',');
                 writer.write(String.valueOf(success));
                 writer.write(',');
                 writer.write(String.valueOf(failed));
+                writer.write(',');
+                writer.write(String.valueOf(paidSuccess));
+                writer.write(',');
+                writer.write(String.valueOf(unpaidReserved));
+                writer.write(',');
+                writer.write(String.valueOf(queryOk));
+                writer.write(',');
+                writer.write(String.valueOf(queryMismatch));
                 writer.write(',');
                 writer.write(String.valueOf(avgLatency));
                 writer.write(',');
@@ -293,6 +366,26 @@ public class SeckillLoadTest {
             return response.substring("FAILED:".length()).trim();
         }
         return "UNKNOWN_RESPONSE";
+    }
+
+    private static String parseOrderId(String response) {
+        if (response == null || !response.startsWith("SUCCESS:")) {
+            return null;
+        }
+
+        int marker = response.indexOf("訂單#");
+        if (marker < 0) {
+            return null;
+        }
+        int start = marker + 3;
+        int end = start;
+        while (end < response.length() && Character.isDigit(response.charAt(end))) {
+            end++;
+        }
+        if (end <= start) {
+            return null;
+        }
+        return response.substring(start, end);
     }
 
     private static long avg(List<Long> values) {
